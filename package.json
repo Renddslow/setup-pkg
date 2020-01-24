@@ -1,9 +1,9 @@
 {
-  "name": "init-pkg",
+  "name": "setup-pkg",
   "version": "1.0.0",
   "description": "Quickly set up an npm package in one command.",
   "main": "index.js",
-  "repository": "https://github.com/Renddslow/init-pkg",
+  "repository": "https://github.com/Renddslow/setup-pkg",
   "author": "Matt McElwee <mubatt@wyopub.com>",
   "license": "MIT",
   "dependencies": {
@@ -18,6 +18,6 @@
     "write-json-file": "^4.2.1"
   },
   "bin": {
-    "init-pkg": "index.js"
+    "setup-pkg": "index.js"
   }
 }

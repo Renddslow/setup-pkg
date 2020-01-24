@@ -1,4 +1,4 @@
-# init-pkg
+# setup-pkg
 
 > A command-line tool to initialize a node module project. 
 
@@ -8,7 +8,7 @@ The project will create a new directory with git (including a gitignore), pretti
 
 ```
 Usage
-    $ init-pkg <project_user> [name] [options]
+    $ setup-pkg <project_user> [name] [options]
 
   Options
     -t, --typescript          Initialize the package with typescript set up
