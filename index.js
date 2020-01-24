@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-const { exec } = require('child_process');
+const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const { promisify } = require('util');
@@ -9,18 +9,24 @@ const mkdir = require('make-dir');
 const prompts = require('prompts');
 const semver = require('semver');
 const write = require('write-json-file');
-const cpy = require('cpy');
+const ejs = require('ejs');
+const sort = require('sort-package-json');
 
 const writeFile = promisify(fs.writeFile);
 const readFile = promisify(fs.readFile);
 
 const prog = sade('init-pkg <project_user> [name]');
 
+const readTemplate = async (name, data = {}) => {
+  const file = (await readFile(path.join(__dirname, 'templates', `${name}.ejs`))).toString();
+  return ejs.render(file, data);
+};
+
 prog
   .version(require('./package').version)
   .option('-t, --typescript', 'Initialize the package with typescript set up')
   .option('-b, --bitbucket', 'Initialize the repo with pointing at Bitbucket instead of GitHub')
-  .option('--skip-git', `Don't initialize a git repository`)
+  .option('-x, --exclude-prettier', `Exclude Renddslow's opinionated prettier setup`)
   .action(async (user, name, opts) => {
     if (!name && !user.includes('/')) throw new Error('');
 
@@ -30,13 +36,17 @@ prog
 
     await mkdir(name);
     const dir = path.join(process.cwd(), name);
+    const repository = opts.b ? `https://bitbucket.org/${user}/${name}` : `https://github.com/${user}/${name}`;
 
-    exec('git init', {
+    execSync('git init', {
+      cwd: dir,
+    });
+    execSync(`git remote add origin ${repository}`, {
       cwd: dir,
     });
 
     await Promise.all([
-      cpy('.gitignore', dir),
+      writeFile(path.join(dir, '.gitignore'), await readTemplate('gitignore')),
       writeFile(path.join(dir, 'yarn.lock'), ''),
     ]);
 
@@ -77,9 +87,58 @@ prog
 
     pkg.name = name;
     pkg.private = false;
-    pkg.repository = opts.b ? `https://bitbucket.org/${user}/${name}` : `https://github.com/${user}/${name}`;
+    pkg.repository = repository;
+    pkg.scripts = {};
 
-    await write(path.join(dir, 'package.json'), pkg);
+    if (!opts['exclude-prettier']) {
+      pkg.prettier = '@dmsi/prettier-config';
+      pkg.husky = {
+        hooks: {
+          'pre-commit': 'lint-staged',
+        },
+      };
+      pkg['lint-staged'] = {
+        '*.{js,css,json,md,ts,tsx}': [
+          'prettier --write',
+        ]
+      };
+    }
+
+    await write(path.join(dir, 'package.json'), sort(pkg));
+
+    const readme = await readTemplate('readme', {
+      name,
+      description: pkg.description,
+    });
+    await writeFile(path.join(dir, 'README.md'), readme);
+    execSync('git add -A', { cwd: dir });
+    execSync('git commit -m "[init-pkg] Initial commit"', { stdio: 'inherit', cwd: dir });
+
+    const devDependencies = [
+      'husky',
+      'prettier',
+      'lint-staged',
+      '@dmsi/prettier-config',
+    ];
+
+    if (opts.typescript) {
+      devDependencies.push(
+        '@types/node',
+        'ts-node',
+        'typescript',
+      );
+      pkg.scripts.build = 'tsc';
+    }
+
+    execSync(`yarn add --dev ${devDependencies.join(' ')}`, {
+      stdio: 'inherit',
+      cwd: dir,
+    });
+
+    execSync('git add -A', { cwd: dir });
+    execSync('git commit -m "[init-pkg] Added base dev dependencies"', { stdio: 'inherit', cwd: dir });
+
+    console.log(`🦄 ${name} has been created. Have fun storming the castle!`);
   });
 
 prog.parse(process.argv);
