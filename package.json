@@ -1,0 +1,12 @@
+{
+  "name": "init-pkg",
+  "version": "1.0.0",
+  "description": "Quickly set up an npm package in one command.",
+  "main": "index.js",
+  "repository": "https://github.com/Renddslow/init-pkg",
+  "author": "Matt McElwee <mubatt@wyopub.com>",
+  "license": "MIT",
+  "dependencies": {
+    "sade": "^1.7.0"
+  }
+}
