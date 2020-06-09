@@ -26,7 +26,8 @@ prog
   .version(require('./package').version)
   .option('-t, --typescript', 'Initialize the package with typescript set up')
   .option('-b, --bitbucket', 'Initialize the repo with pointing at Bitbucket instead of GitHub')
-  .option('-x, --exclude-prettier', `Exclude Renddslow's opinionated prettier setup`)
+  .option('--exclude-ava', 'Exclude Ava installation and configuration')
+  .option('--exclude-prettier', `Exclude Renddslow's opinionated prettier setup`)
   .action(async (user, name, opts) => {
     if (!name && !user.includes('/')) throw new Error('');
 
@@ -90,6 +91,8 @@ prog
     pkg.repository = repository;
     pkg.scripts = {};
 
+    const devDependencies = [];
+
     if (!opts['exclude-prettier']) {
       pkg.prettier = '@dmsi/prettier-config';
       pkg.husky = {
@@ -102,6 +105,25 @@ prog
           'prettier --write',
         ]
       };
+      devDependencies.push(...[
+        'husky',
+        'prettier',
+        'lint-staged',
+        '@dmsi/prettier-config',
+      ]);
+    }
+
+    if (!opts['exclude-ava']) {
+      pkg.ava = {
+        files: ['src/**/*.test.ts'],
+        concurrency: 4,
+        timeout: '1m',
+        babel: false,
+        compileEnhancements: false,
+        extensions: ['ts'],
+        require: ['ts-node/register']
+      };
+      devDependencies.push('ava');
     }
 
     await write(path.join(dir, 'package.json'), sort(pkg));
@@ -114,13 +136,6 @@ prog
     execSync('git add -A', { cwd: dir });
     execSync('git commit -m "[init-pkg] Initial commit"', { stdio: 'inherit', cwd: dir });
 
-    const devDependencies = [
-      'husky',
-      'prettier',
-      'lint-staged',
-      '@dmsi/prettier-config',
-    ];
-
     if (opts.typescript) {
       devDependencies.push(
         '@types/node',
@@ -128,6 +143,11 @@ prog
         'typescript',
       );
       pkg.scripts.build = 'tsc';
+
+      await writeFile(
+        path.join(dir, 'tsconfig.json'),
+        await readFile(path.join(__dirname, 'templates', 'tsconfig.json')),
+      );
     }
 
     execSync(`yarn add --dev ${devDependencies.join(' ')}`, {
